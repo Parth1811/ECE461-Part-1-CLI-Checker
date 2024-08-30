@@ -72,6 +72,9 @@ def print_red(msg: str):
 def print_yellow(msg: str):
     print(f"{YELLOW}{msg}{RESET}")
 
+def print_blue(msg: str):
+    print(f"{BLUE}{msg}{RESET}")
+
 def print_test_result(test_msg: str, result: bool, true_msg: str = "True", false_msg: str = "False"):
     if result:
         print_green(test_msg % true_msg)

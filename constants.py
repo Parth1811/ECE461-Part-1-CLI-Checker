@@ -1,11 +1,17 @@
 import os
 
+## =================== UPDATE THESE VALUES =================== ##
 # Env variables
 GITHUB_TOKEN = "<Inser your TOKEN here>"
 LOG_FILE = "/tmp/checker.log"
 LOG_LEVEL = 2
 
+# Repository location
+REPO_PATH = "<Insert full path here>"
 
+
+
+## =================== DO NOT MODIFY BELOW THIS LINE =================== ##
 # constants
 ONE_URL = os.path.join(os.path.dirname(os.path.realpath(__file__)), "one-url.txt")
 

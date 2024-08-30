@@ -53,10 +53,6 @@ def run_urlfile() -> int:
 
     is_valid_output = False
     try:
-        output = \
-"""
-{"URL":"https://github.com/nullivex/nodist", "NetScore":0.9, "NetScore_Latency": 0.001, "RampUp":0.5, "RampUp_Latency": 0.023, "Correctness":0.7, "Correctness_Latency":0.005, "BusFactor":0.3, "BusFactor_Latency": 0.002, "ResponsiveMaintainer":0.4, "ResponsiveMaintainer_Latency": 0.002, "License":1, "License_Latency": 0.001}
-"""
         ndjson_obj = json.loads(output)
         if isinstance(ndjson_obj, dict):
             obj_keys = [x.lower() for x in ndjson_obj.keys()]
@@ -110,27 +106,26 @@ def run_test_suite() -> int:
     test_suite_regex = re.compile(r"(\d+)\/(\d+) test cases passed. (\d+)% line coverage achieved.", flags=re.IGNORECASE)
 
     test_suite_match = test_suite_regex.search(output)
+    print_test_result("Test suite output is %s the correct format!", test_suite_match, "in", "not in")
     if test_suite_match:
         total_correct += 1
-        print(f"{GREEN}> Test suite output is in the correct format.{RESET}")
     else:
-        print(f"{RED}> Test suite output is not in the correct format.{RESET}")
         return total_correct
         
     results = test_suite_regex.findall(output)
     total_tests = int(results[0][1])
     line_coverage = int(results[0][2])
 
+    print_test_result("Test suite contains %s test cases!", total_tests, "20 or more", "less than 20")
     if total_tests >= 20:
         total_correct += 1
-        print(f"{GREEN}> Test suite contains 20 or more test cases.{RESET}")
-    else:
-        print(f"{RED}> Test suite contains less than 20 test cases.{RESET}")
 
+    
     if line_coverage >= 80:
         total_correct += 2
         print(f"{GREEN}> Test suite achieved 80% or greater line coverage.{RESET}")
     elif line_coverage >= 60:
+        tptal_correct += 1
         print(f"{YELLOW}> Test suite achieved 60% or greater line coverage.{RESET}")
     else:
         print(f"{RED}> Test suite achieved less than 60% line coverage.{RESET}")
@@ -152,6 +147,13 @@ def main():
         os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
         with open(LOG_FILE, 'w') as f:
             f.write("")
+
+    if not os.path.exists(REPO_PATH):
+        print_red(f"Error: Repository path {REPO_PATH} does not exist, please update the REPO_PATH variable in constants.py")
+        sys.exit(1)
+
+    os.chdir(REPO_PATH)
+    print_blue(f"Running tests in {REPO_PATH}")
 
     # Run install test
     print(f"{BOLD}{BLUE}Testing './run install'...{RESET}")
