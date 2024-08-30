@@ -47,17 +47,13 @@ class MODULE_SCORE:
     # If any score is outside the range [0,1] then the score is invalid
     def is_valid(self):
         for field in SCORE_FIELDS:
-            try:
-                if not 0 <= getattr(self, field.lower()) <= 1:
-                    return False
-            except Exception as e:
-                print_red(f"Error: {e}")
-                print_red(f"Field: {field}")
+            value = getattr(self, field.lower())
+            if not (0 <= value <= 1 or value == -1):
                 return False
             
         for field in LATENCY_FIELDS:
-            if not 0 <= getattr(self, field.lower()):
-                print_yellow(f"{field} {getattr(self, field.lower())} is not in the range [0,1]")
+            value = getattr(self, field.lower())
+            if not (0 <= value or value == -1):
                 return False
         
         return True
