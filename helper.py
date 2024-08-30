@@ -1,14 +1,10 @@
-import subprocess as sp
 import json
 import os
+import subprocess as sp
+import sys
 
-ESC="\033"
-RED=ESC+"[91m"
-GREEN=ESC+"[92m"
-YELLOW=ESC+"[93m"
-BLUE=ESC+"[94m"
-RESET=ESC+"[0m"
-BOLD=ESC+"[1m"
+from constants import *
+
 
 class CLI_CMD_WRAPPER:
     def __init__(self, command: str):
@@ -32,31 +28,52 @@ class MODULE_SCORE:
         self.ndjson_str = ndjson_str
         self.ndjson_obj = json.loads(ndjson_str)
         self.url = self.ndjson_obj['URL']
-        self.total_score = self.ndjson_obj['NET_SCORE']
-        self.ramp_up_score = self.ndjson_obj['RAMP_UP_SCORE']
-        self.correctness_score = self.ndjson_obj['CORRECTNESS_SCORE']
-        self.bus_factor_score = self.ndjson_obj['BUS_FACTOR_SCORE']
-        self.responsive_maintainer_score = self.ndjson_obj['RESPONSIVE_MAINTAINER_SCORE']
-        self.license_score = self.ndjson_obj['LICENSE_SCORE']
+        
+        for field in SCORE_FIELDS:
+            setattr(self, field.lower(), self[field])
+
+        for field in LATENCY_FIELDS:
+            setattr(self, field.lower(), self[field])
+
+
+    def __getitem__(self, key: str):
+        key_lower = key.lower()
+        obj_key_map = {x.lower(): x for x in self.ndjson_obj.keys()}
+        if key_lower in obj_key_map:
+            return self.ndjson_obj[obj_key_map[key_lower]]
+        return None
+
 
     # If any score is outside the range [0,1] then the score is invalid
     def is_valid(self):
-        if self.total_score > 1 or self.total_score < 0:
-            return False
-        
-        if self.ramp_up_score > 1 or self.ramp_up_score < 0:
-            return False
-        
-        if self.correctness_score > 1 or self.correctness_score < 0:
-            return False
-        
-        if self.bus_factor_score > 1 or self.bus_factor_score < 0:
-            return False
-        
-        if self.responsive_maintainer_score > 1 or self.responsive_maintainer_score < 0:
-            return False
-        
-        if self.license_score > 1 or self.license_score < 0:
-            return False
+        for field in SCORE_FIELDS:
+            try:
+                if not 0 <= getattr(self, field.lower()) <= 1:
+                    return False
+            except Exception as e:
+                print_red(f"Error: {e}")
+                print_red(f"Field: {field}")
+                return False
+            
+        for field in LATENCY_FIELDS:
+            if not 0 <= getattr(self, field.lower()):
+                print_yellow(f"{field} {getattr(self, field.lower())} is not in the range [0,1]")
+                return False
         
         return True
+
+
+def print_green(msg: str):
+    print(f"{GREEN}{msg}{RESET}")
+
+def print_red(msg: str):
+    print(f"{RED}{msg}{RESET}")
+
+def print_yellow(msg: str):
+    print(f"{YELLOW}{msg}{RESET}")
+
+def print_test_result(test_msg: str, result: bool, true_msg: str = "True", false_msg: str = "False"):
+    if result:
+        print_green(test_msg % true_msg)
+    else:
+        print_red(test_msg % false_msg)

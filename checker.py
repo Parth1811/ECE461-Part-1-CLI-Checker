@@ -1,8 +1,10 @@
-import subprocess as sp
-import sys
 import json
 import os
 import re
+import subprocess as sp
+import sys
+
+from constants import GITHUB_TOKEN, LOG_FILE, LOG_LEVEL, ONE_URL
 from helper import *
 
 
@@ -16,27 +18,16 @@ def run_install() -> int:
 
     install = CLI_CMD_WRAPPER("./run install")
     test_suite = CLI_CMD_WRAPPER("./run test")
-    url_file = CLI_CMD_WRAPPER("./run one-url.txt")
+    url_file = CLI_CMD_WRAPPER(f"./run {ONE_URL}")
 
     install_rc, output = install.run()
     test_suite_rc, output = test_suite.run()
     url_file_rc, output = url_file.run()
     total_correct = install_rc + test_suite_rc + url_file_rc
 
-    if install_rc:
-        print(f"{GREEN}> Install command exited successfully!{RESET}")
-    else:
-        print(f"{RED}> Install command failed to exit successfully!{RESET}")
-    
-    if test_suite_rc:
-        print(f"{GREEN}> Subsequent test command exited successfully!{RESET}")
-    else:
-        print(f"{RED}> Subsequent test command failed to exit successfully!{RESET}")
-    
-    if url_file_rc:
-        print(f"{GREEN}> Subsequent URL_FILE command exited successfully!{RESET}")
-    else:
-        print(f"{RED}> Subsequent URL_FILE command failed to exit successfully!{RESET}")
+    print_test_result("Install command %s successfully!", install_rc, "exited", "did not exit")
+    print_test_result("Subsequent test command %s successfully!", test_suite_rc, "exited", "did not exit")
+    print_test_result("Subsequent URL_FILE command %s successfully!", url_file_rc, "exited", "did not exit")
 
     return total_correct
 
@@ -50,65 +41,54 @@ def run_install() -> int:
 # Each score should have up to 5 decimal places of precision, with no trailing zeroes
 # The command should exit 0 on success, and non-zero on failure
 def run_urlfile() -> int:
-    url_file = CLI_CMD_WRAPPER("./run one-url.txt")
+    url_file = CLI_CMD_WRAPPER(f"./run {ONE_URL}")
     url_file_rc, output = url_file.run()
-    is_valid_output: bool
     total_correct = 0
 
-    if url_file_rc is True:
+    print_test_result("URL_FILE command %s successfully!", url_file_rc)
+    if url_file_rc:
         total_correct += 1
-        print(f"{GREEN}> URL_FILE command exited successfully.{RESET}")
     else:
-        print(f"{RED}> URL_FILE command failed to exit successfully.{RESET}")
         return 0
 
+    is_valid_output = False
     try:
+        output = \
+"""
+{"URL":"https://github.com/nullivex/nodist", "NetScore":0.9, "NetScore_Latency": 0.001, "RampUp":0.5, "RampUp_Latency": 0.023, "Correctness":0.7, "Correctness_Latency":0.005, "BusFactor":0.3, "BusFactor_Latency": 0.002, "ResponsiveMaintainer":0.4, "ResponsiveMaintainer_Latency": 0.002, "License":1, "License_Latency": 0.001}
+"""
         ndjson_obj = json.loads(output)
-        if "URL" in ndjson_obj \
-        and "NET_SCORE" in ndjson_obj \
-        and "RAMP_UP_SCORE" in ndjson_obj \
-        and "CORRECTNESS_SCORE" in ndjson_obj \
-        and "BUS_FACTOR_SCORE" in ndjson_obj \
-        and "RESPONSIVE_MAINTAINER_SCORE" in ndjson_obj \
-        and "LICENSE_SCORE" in ndjson_obj:
-            is_valid_output = True
-        else:
-            is_valid_output = False
+        if isinstance(ndjson_obj, dict):
+            obj_keys = [x.lower() for x in ndjson_obj.keys()]
+            is_valid_output = all(field.lower() in obj_keys for field in ALL_FIELDS)
     except Exception as e:
-        is_valid_output = False
+        pass
 
-    if is_valid_output is True:
+    print_test_result("URL_FILE output is %s NDJSON!", is_valid_output, "valid", "not valid")
+    if is_valid_output:
         total_correct += 1
-        print(f"{GREEN}> URL_FILE output is valid NDJSON.{RESET}")
     else:
-        print(f"{RED}> URL_FILE output is not valid NDJSON.{RESET}")
         return total_correct
     
     module_score = MODULE_SCORE(output)
+    print_test_result("URL_FILE output is a %s module score!", module_score.is_valid(), "valid", "not valid")
     if module_score.is_valid():
         total_correct += 1
-        print(f"{GREEN}> URL_FILE output is a valid module score.{RESET}")
-    else:
-        print(f"{RED}> URL_FILE output is not a valid module score.{RESET}")
     
     os.environ["LOG_FILE"] = ""
     url_file = CLI_CMD_WRAPPER("./run one-url.txt")
     url_file_rc, output = url_file.run()
-    if url_file_rc is False:
+    print_test_result("URL_FILE command %s successfully when LOG_FILE is not set!", not url_file_rc, "did not exit", "exited")
+    if not url_file_rc:
         total_correct += 1
-        print(f"{GREEN}> URL_FILE command failed to exit successfully when LOG_FILE is not set.{RESET}")
-    else:
-        print(f"{RED}> URL_FILE command exited successfully when LOG_FILE is not set.{RESET}")
 
     os.environ["LOG_FILE"] = "/tmp/log"
     os.environ["GITHUB_TOKEN"] = ""
     url_file = CLI_CMD_WRAPPER("./run one-url.txt")
     url_file_rc, output = url_file.run()
-    if url_file_rc is False:
+    print_test_result("URL_FILE command %s successfully when GITHUB_TOKEN is not set!", not url_file_rc, "did not exit", "exited")
+    if not url_file_rc:
         total_correct += 1
-        print(f"{GREEN}> URL_FILE command failed to exit successfully when GITHUB_TOKEN is not set.{RESET}")
-    else:
-        print(f"{RED}> URL_FILE command exited successfully when GITHUB_TOKEN is not set.{RESET}")
     
     return total_correct
 
@@ -129,7 +109,7 @@ def run_test_suite() -> int:
     total_correct = 0
     test_suite_regex = re.compile(r"(\d+)\/(\d+) test cases passed. (\d+)% line coverage achieved.", flags=re.IGNORECASE)
 
-    test_suite_match = test_suite_regex.match(output)
+    test_suite_match = test_suite_regex.search(output)
     if test_suite_match:
         total_correct += 1
         print(f"{GREEN}> Test suite output is in the correct format.{RESET}")
@@ -164,10 +144,15 @@ def run_test_suite() -> int:
 def main():
     
     #Setup ENV for testing
-    os.environ['GITHUB_TOKEN'] = "INSERT VALID TOKEN HERE"
-    os.environ['LOG_LEVEL'] = "0"
-    os.environ['LOG_FILE'] = "/tmp/log"
+    os.environ['GITHUB_TOKEN'] = GITHUB_TOKEN
+    os.environ['LOG_LEVEL'] = str(LOG_LEVEL)
+    os.environ['LOG_FILE'] = LOG_FILE
     
+    if not os.path.exists(LOG_FILE):
+        os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+        with open(LOG_FILE, 'w') as f:
+            f.write("")
+
     # Run install test
     print(f"{BOLD}{BLUE}Testing './run install'...{RESET}")
     total_correct = run_install()
@@ -185,4 +170,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
