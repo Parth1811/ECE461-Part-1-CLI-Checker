@@ -18,7 +18,7 @@ def run_install() -> int:
 
     install = CLI_CMD_WRAPPER("./run install")
     test_suite = CLI_CMD_WRAPPER("./run test")
-    url_file = CLI_CMD_WRAPPER(f"./run {ONE_URL}")
+    url_file = CLI_CMD_WRAPPER(f'./run "{ONE_URL}"')
 
     install_rc, output = install.run()
     test_suite_rc, output = test_suite.run()
