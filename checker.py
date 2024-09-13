@@ -54,11 +54,19 @@ def run_urlfile() -> int:
     is_valid_output = False
     try:
         ndjson_obj = json.loads(output)
+    except Exception as e:
+        print_red("Could not parse output as JSON")
+        print_yellow(f"Output: {output}")
+        print_red(f"Error: {e}")
+    else:
         if isinstance(ndjson_obj, dict):
             obj_keys = [x.lower() for x in ndjson_obj.keys()]
             is_valid_output = all(field.lower() in obj_keys for field in ALL_FIELDS)
-    except Exception as e:
-        pass
+            if not is_valid_output:
+                print_red("Output JSON does not contain all required fields")
+        else:
+            print_red("Output JSON is not a directory")
+        
 
     print_test_result("> URL_FILE output is %s NDJSON!", is_valid_output, "valid", "not valid")
     if is_valid_output:
@@ -67,7 +75,7 @@ def run_urlfile() -> int:
         return total_correct
     
     module_score = MODULE_SCORE(output)
-    print_test_result("> URL_FILE output is a %s module score!", module_score.is_valid(), "valid", "not valid")
+    print_test_result("> URL_FILE output %s score in valid ranges [0,1] U {-1} !", module_score.is_valid(), "has", "does not have")
     if module_score.is_valid():
         total_correct += 1
     
