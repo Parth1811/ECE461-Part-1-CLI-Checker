@@ -6,7 +6,7 @@ import sys
 from constants import *
 
 
-class CLI_CMD_WRAPPER:
+class CmdWrapper:
     def __init__(self, command: str):
         self.command = command
 
@@ -17,13 +17,20 @@ class CLI_CMD_WRAPPER:
             if result.returncode == 0:
                 return True, result.stdout.decode('utf-8')
             else:
+                print_red(f"Command '{self.command}' failed with return code {result.returncode}")
+                print_yellow(f"Stdout: {result.stdout.decode('utf-8')}")
+                print_red(f"Stderr: {result.stderr.decode('utf-8')}")
                 return False, result.stdout.decode('utf-8')
         except sp.CalledProcessError as e:
+            print_red(f"CalledProcessError: Command '{self.command}' failed with return code {e.returncode}")
+            print_red(f"Error: {e}")
             return False, e
         except Exception as e:
+            print_red("Unpected error while running command '{self.command}'")
+            print_red(f"Error: {e}")
             return False, e
 
-class MODULE_SCORE:
+class Deserializer:
     def __init__(self, ndjson_str: str):
         self.ndjson_str = ndjson_str
         self.ndjson_obj = json.loads(ndjson_str)
@@ -46,17 +53,26 @@ class MODULE_SCORE:
 
     # If any score is outside the range [0,1] then the score is invalid
     def is_valid(self):
-        for field in SCORE_FIELDS:
-            value = getattr(self, field.lower())
-            if not (0 <= value <= 1 or value == -1):
-                return False
+        try:
+            for field in SCORE_FIELDS:
+                value = getattr(self, field.lower())
+                if not (0 <= value <= 1 or value == -1):
+                    return False
+                
+            for field in LATENCY_FIELDS:
+                value = getattr(self, field.lower())
+                if not (0 <= value or value == -1):
+                    return False
             
-        for field in LATENCY_FIELDS:
-            value = getattr(self, field.lower())
-            if not (0 <= value or value == -1):
-                return False
-        
-        return True
+            return True
+        except TypeError as e:
+            print_red(f"Incorrect type for field '{field}'. Expected float, got '{type(value)}'")
+            print_red(f"Error: {e}")
+            return False
+        except Exception as e:
+            print_red(f"Unpected error while validating field '{field}'")
+            print_red(f"Error: {e}")
+            return False
 
 
 def print_green(msg: str):

@@ -16,9 +16,9 @@ def run_install() -> int:
     test_suite_rc: bool
     url_file_rc: bool
 
-    install = CLI_CMD_WRAPPER("./run install")
-    test_suite = CLI_CMD_WRAPPER("./run test")
-    url_file = CLI_CMD_WRAPPER(f'./run "{ONE_URL}"')
+    install = CmdWrapper("./run install")
+    test_suite = CmdWrapper("./run test")
+    url_file = CmdWrapper(f'./run "{ONE_URL}"')
 
     install_rc, output = install.run()
     test_suite_rc, output = test_suite.run()
@@ -41,11 +41,11 @@ def run_install() -> int:
 # Each score should have up to 5 decimal places of precision, with no trailing zeroes
 # The command should exit 0 on success, and non-zero on failure
 def run_urlfile() -> int:
-    url_file = CLI_CMD_WRAPPER(f"./run {ONE_URL}")
+    url_file = CmdWrapper(f"./run {ONE_URL}")
     url_file_rc, output = url_file.run()
     total_correct = 0
 
-    print_test_result("> URL_FILE command %s successfully!", url_file_rc)
+    print_test_result("> URL_FILE command %s successfully!", url_file_rc, "exited", "did not exit")
     if url_file_rc:
         total_correct += 1
     else:
@@ -74,23 +74,24 @@ def run_urlfile() -> int:
     else:
         return total_correct
     
-    module_score = MODULE_SCORE(output)
-    print_test_result("> URL_FILE output %s score in valid ranges [0,1] U {-1} !", module_score.is_valid(), "has", "does not have")
-    if module_score.is_valid():
+    json_output_obj = Deserializer(output)
+    is_valid_output_ranges = json_output_obj.is_valid()
+    print_test_result("> URL_FILE output %s score in valid ranges [0,1] U {-1} !", is_valid_output_ranges, "has", "does not have")
+    if is_valid_output_ranges:
         total_correct += 1
     
     os.environ["LOG_FILE"] = ""
-    url_file = CLI_CMD_WRAPPER("./run one-url.txt")
+    url_file = CmdWrapper("./run one-url.txt")
     url_file_rc, output = url_file.run()
-    print_test_result("> URL_FILE command %s successfully when LOG_FILE is not set!", not url_file_rc, "did not exit", "exited")
+    print_test_result("> URL_FILE command %s successfully when LOG_FILE is not set!", not url_file_rc, "correctly did not exit", "incorrectly exited")
     if not url_file_rc:
         total_correct += 1
 
     os.environ["LOG_FILE"] = "/tmp/log"
     os.environ["GITHUB_TOKEN"] = ""
-    url_file = CLI_CMD_WRAPPER("./run one-url.txt")
+    url_file = CmdWrapper("./run one-url.txt")
     url_file_rc, output = url_file.run()
-    print_test_result("> URL_FILE command %s successfully when GITHUB_TOKEN is not set!", not url_file_rc, "did not exit", "exited")
+    print_test_result("> URL_FILE command %s successfully when GITHUB_TOKEN is not set!", not url_file_rc, "correctly did not exit", "incorrectly exited")
     if not url_file_rc:
         total_correct += 1
     
@@ -103,7 +104,7 @@ def run_urlfile() -> int:
 # "X/Y test cases passed. Z% line coverage achieved."
 # The command should exit 0 on success, and non-zero on failure
 def run_test_suite() -> int:
-    test_suite = CLI_CMD_WRAPPER("./run test")
+    test_suite = CmdWrapper("./run test")
     test_suite_rc, output = test_suite.run()
 
     if test_suite_rc is False:
@@ -111,7 +112,7 @@ def run_test_suite() -> int:
         return 0
     
     total_correct = 0
-    test_suite_regex = re.compile(r"(\d+)\/(\d+) test cases passed. (\d+)% line coverage achieved.", flags=re.IGNORECASE)
+    test_suite_regex = re.compile(r"(\d+)/(\d+) test cases passed. (\d+\.\d+|\d+)% line coverage achieved.", flags=re.IGNORECASE)
 
     test_suite_match = test_suite_regex.search(output)
     print_test_result("> Test suite output is %s the correct format!", test_suite_match, "in", "not in")
@@ -122,7 +123,7 @@ def run_test_suite() -> int:
         
     results = test_suite_regex.findall(output)
     total_tests = int(results[0][1])
-    line_coverage = int(results[0][2])
+    line_coverage = float(results[0][2])
 
     print_test_result("> Test suite contains %s test cases!", total_tests, "20 or more", "less than 20")
     if total_tests >= 20:
@@ -133,7 +134,7 @@ def run_test_suite() -> int:
         total_correct += 2
         print(f"{GREEN}> Test suite achieved 80% or greater line coverage. (2/2 points){RESET}")
     elif line_coverage >= 60:
-        tptal_correct += 1
+        total_correct += 1
         print(f"{YELLOW}> Test suite achieved 60% or greater line coverage. (1/2 points){RESET}")
     else:
         print(f"{RED}> Test suite achieved less than 60% line coverage. (0/2 points) {RESET}")
